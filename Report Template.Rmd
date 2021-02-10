@@ -1,0 +1,98 @@
+---
+title: "Report on Field Trial \n FieldName"
+output: word_document
+---
+
+```{r include=FALSE}
+#--- working field-year ---#
+library(here)
+library(tmap)
+library(sf)
+library(ggplot2)
+library(lwgeom)
+library(measurements)
+library(data.table)
+library(tidyverse)
+library(gdata)
+library(mgcv)
+library(daymetr)
+
+field_year <- "Field_2019"
+
+#--- field parameters ---#
+source("https://raw.githubusercontent.com/brittanikedge/Precision-Agriculture-Producer-Materials/main/functions.R")
+source("https://raw.githubusercontent.com/brittanikedge/DIFM/main/Functions.R")
+
+#--- currently we do not have this as part of the field parameter data ---#
+plot_width <- 60
+
+```
+
+
+```{r data-prep, cache=FALSE, include=FALSE}
+# we need to bring all of the data into the document
+analysis_data <- here("data.gpkg") %>% 
+  st_read()
+
+trial_design <- here("trial_new.gpkg") %>% 
+  st_read()
+
+as_applied_s <- st_read(here("asplanted_new.gpkg"))
+
+yield <- st_read(here("yield_new.gpkg"))
+
+yield_clean <- st_read(here("yield_clean.gpkg"))
+
+boundary <- read_sf("boundary_new.gpkg")
+weather <- download_daymet(site = "Field1", lat = cent_lat(boundary), lon = cent_long(boundary), start = 2000, end = 2018, internal = TRUE)
+
+```
+
+# Field Management Information
+```{r include=FALSE}
+tgts_ls <- unique(trial_design$SEEDRATE) 
+tgts_ls <- tgts_ls[order(tgts_ls)]
+s_sq <- 37000
+planter_width <- 60
+harvester_width <- 30
+crop <- "corn"
+rand <- "completely randomized"
+
+```
+
+# Trial Design and Implementation 
+
+This was a seed and nitrogen trial on `r I(crop)` Below is the information about the trial rates of seed. Figure 1 presents the trial design. The trial design used `r I(length(tgts_ls))` seed rates. The treatments were laid out in a `r I(rand)` design.  The baseline treatment, what the producer would apply without participating in the trial, was (`r I(s_sq)` K).  Areas around the perimeter of the field received the baseline treatment and were not included in the analysis.  There were `r I(nrow(subset(trial_design, treat_type != 17)))` trial plots in total.  Each plot was `r I(plot_width)` feet wide. 
+
++ Baseline seed rate of `r s_sq` K.
++ Seed target rates: `r paste0(tgts_ls, "K", collapse = ",")` 
++ Planter width: `r planter_width` feet
++ Harvester width: `r harvester_width` feet
+
+```{r trial-design, echo=FALSE}
+map_poly(trial_design, "SEEDRATE", "Targeted Seed Rate")
+```
+The planting map highlights the quality of the seeding data. The planter implemented the trial with a high level of accuracy. 
+
+```{r as-planted-seed-map, echo=FALSE}
+#/*----------------------------------*/
+#' ## As-planted Seed Rate
+#/*----------------------------------*/
+map_points(as_applied_s, "Rt_Apd_Ct_", "As-planted Seed Rate")
+```
+The raw yield map displays the importance of cleaning the data. We can see outliers throughout the field, where the harvester is registering very large yields. 
+```{r echo=FALSE, fig.cap="Yield"}
+#/*----------------------------------*/
+#' ## Raw yield
+#/*----------------------------------*/
+map_points(yield, "Yld_Vol_Dr", "Yield (bu/ac)")
+
+```
+
+# Weather 
+
+The figure below displays the monthly rainfall in inches across 2018. The color of each month compares the rainfall from 2018 with the 10-year average. We can see that 2018 was an average year with rainfall within 1 to 2 inches of the historic average.
+
+```{r tgts-ap, echo=FALSE}
+month_prec_graph(weather, comp_year = 2018)
+```
